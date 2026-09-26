@@ -8,6 +8,7 @@
 - 원본 보존 브랜치: `main`
 - 시작 upstream revision: `24a5d5986ae11a63882004382576460844760700`
 - [프로젝트 README](readme.md)
+- [공력·동역학 상세 실행 계획](AERODYNAMICS_ENGINEERING_PLAN.md): 원본 조사 결과, CAD 추출, sweep, CFD, 계수 DB, Gazebo 매핑, 트림·검증 절차
 
 ## 현재 진행 상태
 
@@ -481,184 +482,64 @@ model.sdf update
 
 # 11. Phase 3 — Aerodynamic Model
 
-## 목표
+이 단계의 실행 기준은 [공력·동역학 상세 실행 계획](AERODYNAMICS_ENGINEERING_PLAN.md)이다.
+정상 비행 모델을 먼저 만들고, 검증된 데이터 범위에 따라 비선형·실속·prop-on 효과를 확장한다.
 
-단순히 "날개가 있으니 LiftDrag plugin" 수준으로 끝내지 않는다.
-
-Scimitar에 대해 최소 다음 계수가 필요하다.
-
-```text
-CL(alpha)
-CD(alpha)
-Cm(alpha)
-
-control derivatives:
-dCL / d(delta_elevon)
-dCm / d(delta_elevon)
-
-lateral-directional:
-CY(beta)
-Cl(beta)
-Cn(beta)
-
-rate derivatives, if obtainable:
-Cl_p
-Cm_q
-Cn_r
-...
-```
+필수 결과는 힘 계수 CX/CY/CZ 및 CL/CD, 모멘트 계수 Cl/Cm/Cn, 조종면 효과와 rate derivatives다.
+모든 계수에 기준 면적·길이·모멘트 기준점·축·단위·유효범위를 붙인다.
 
 ---
 
 # 12. Upstream CFD 먼저 해석
 
-`CFD/` 아래 파일을 먼저 분석한다.
+사전 조사 결과 `CFD/project_results.xml`에는 빈 `FlowmasterData`만 있다.
+`Internal_M5GO.info.json`에는 단일 계산의 goal 요약과 설정 정보가 있지만 전체 coefficient sweep은 확인되지 않았다.
+`Internal_M5GO.xmlconfig`는 표준 XML parser에서 문법 오류가 발생하므로 원본 보존과 명시적 처리 절차가 필요하다.
 
-특히:
-
-```text
-project_results.xml
-*.fld
-other result files
-```
-
-에서 다음을 찾는다.
-
-```text
-AoA
-Velocity
-Lift
-Drag
-Moment
-CL
-CD
-Cm
-L/D
-reference area
-reference length
-density
-```
-
-### 원칙
-
-upstream CFD 값을 확인하기 전에 새 CFD를 돌리지 않는다.
+상세 계획 2장에 확인된 사실과 근거를 기록했다. 다른 로그와 native export의 복원 가능성을 추가 조사하고,
+외부 유속·축·단위·힘 종류·형상 configuration을 확인한 데이터만 fitting에 사용한다.
 
 ---
 
-# 13. CFD가 충분하지 않은 경우
+# 13. 부족한 데이터의 보완 경로
 
-다음 순서로 부족한 데이터를 채운다.
+- CAD 단면을 바탕으로 VSPAERO 형상을 재구성하고 정상 비행 하중을 계산한다.
+- AVL로 단순 형상의 안정미계수·트림을 교차 확인한다.
+- XFOIL 단면 polar와 자료 조사로 점성항력·천이 민감도를 추정한다.
+- 필요한 조건만 3D RANS CFD로 계산하고, 비정상성에 근거가 있으면 URANS를 검토한다.
+- solver/version 고정과 pilot case의 형상·단위·수렴 확인 이후 대량 실행한다.
 
-## Level 1
-
-OpenVSP / VSPAERO
-
-장점:
-
-- fixed-wing coefficient sweep에 적합
-- alpha/beta/control surface sweep 가능
-- 반복 자동화가 쉬움
-
-## Level 2
-
-필요한 영역만 추가 CFD
-
-예:
-
-```text
-near stall
-large elevon deflection
-fuselage interaction
-```
-
-처음부터 모든 operating point를 고비용 CFD로 계산하지 않는다.
+각 도구의 한계, 대체 경로 및 데이터 채택 기준은 상세 계획 5~8장을 따른다.
 
 ---
 
 # 14. Aerodynamic Sweep Matrix
 
-최소 후보:
-
-```text
-AoA:
--10 to +20 deg
-
-Beta:
--15 to +15 deg
-
-Elevon symmetric:
--20 to +20 deg
-
-Elevon differential:
--20 to +20 deg
-```
-
-실제 range는 CAD/PX4/servo geometry 분석 후 확정한다.
+상세 계획 6장에 baseline, 대칭·차동 elevon, beta, mixed controls, rate derivatives와 envelope 확장 case를 정의했다.
+upstream airspeed 설정은 속도 후보의 참고 자료이며 실제 실속속도나 검증된 비행 범위가 아니다.
+실제 hinge 가동범위와 pilot 결과를 확인한 후 cases.csv를 확정한다.
 
 ---
 
 # 15. Gazebo Aerodynamic Implementation
 
-V0에서는 PX4의 Gazebo plane model 구조를 참고해 aerodynamic system을 구성한다.
+V0 기본안은 **전기체 계수 한 세트를 body link에 적용하고 좌우 elevon joint angle을 읽는 방식**이다.
+전기체 계수에 이미 포함된 wing/elevon 하중을 개별 LiftDrag로 다시 더하지 않는다.
 
-예상 구조:
-
-```text
-Left wing lift/drag
-Right wing lift/drag
-Left elevon contribution
-Right elevon contribution
-Fuselage drag
-```
-
-Scimitar는 flying wing이므로:
-
-```text
-left elevon
-right elevon
-```
-
-이 pitch와 roll에 동시에 영향을 준다.
+AdvancedLiftDrag exporter는 고정한 Gazebo 소스의 축·동압·각도·rate 정의를 따른다.
+사전 조사에서 control angle의 deg 변환, MAC 기본값, beta/동압 정의 및 cp moment 반영을 확인했다.
+상세 계획 10장의 매핑 검토와 force-level 시험을 통과한 뒤 PX4에 연결한다.
 
 ---
 
 # 16. Advanced Model로 확장
 
-기본 LiftDrag parameterization이 Scimitar의 coefficient table을 충분히 표현하지 못하면:
+정상 영역 holdout 시험에서 기본 plugin의 오차가 허용 기준을 넘고 범위 축소로 해결되지 않으면
+테이블 기반 사용자 Gazebo system plugin으로 전환한다.
 
-```text
-Custom Gazebo aerodynamic system plugin
-```
-
-으로 넘어간다.
-
-입력:
-
-```text
-airspeed
-alpha
-beta
-p q r
-left elevon
-right elevon
-air density
-```
-
-출력:
-
-```text
-Fx Fy Fz
-Mx My Mz
-```
-
-즉:
-
-```text
-F_aero = f(state, controls)
-M_aero = f(state, controls)
-```
-
-를 직접 계산한다.
+입력: wind-relative velocity, alpha/beta, p/q/r, 실제 좌우 elevon 각도, 밀도 및 필요 시 propulsion 상태.
+출력: 적용 좌표계와 기준점이 명확한 Fx/Fy/Fz 및 Mx/My/Mz.
+오프라인 evaluator와 같은 계수 평가식을 사용하며 적용범위 밖 상태를 명시적으로 기록한다.
 
 ---
 
@@ -777,7 +658,7 @@ FW attitude controller
 
 **원 기체 parameter를 먼저 분석하고, SITL에 적합한 항목만 선별해 이식한다.**
 
-원본 parameter 파일은 그대로 보존한다. 센서 보정값, 하드웨어 출력 설정, 펌웨어 버전별 parameter 차이를 검토하고 SITL용 airframe/control allocation을 별도로 관리한다. 실기체 설정 전체를 일괄 import하지 않는다.
+원본 parameter 파일은 그대로 보존한다. 센서 보정값, 하드웨어 출력 설정, 펌웨어 버전별 parameter 차이를 검토하고 SITL용 airframe/control allocation을 별도로 관리한다. 실기체 설정 전체를 일괄 import하지 않는다. upstream `PX4 Firmware/readme.txt`도 controller tune을 새로 수행하도록 명시하고 있다.
 
 PX4 자체는 현재 flying-wing airframe을 지원하므로 Scimitar control allocation에 활용한다.
 

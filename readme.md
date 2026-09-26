@@ -28,6 +28,8 @@ Scimitar 기반 고정익 기체의 제작 자료와 Gazebo / PX4 SITL 시뮬레
 
 ## 개발 계획
 
+공력해석의 도구 선택, 계산 조건, CFD 격자·수렴, 계수 DB, Gazebo 매핑과 트림 검증은 [공력·동역학 상세 실행 계획](AERODYNAMICS_ENGINEERING_PLAN.md)에 정리했습니다. 원본 CFD/PX4 텍스트 일부를 사전 조사했으며 전체 데이터 감사와 실제 해석은 아직 진행 전입니다.
+
 전체 범위와 단계별 검증 기준은 [Scimitar Gazebo Digital Twin 개발 계획](SCIMITAR_GAZEBO_DIGITAL_TWIN_PLAN.md)을 참고하세요.
 
 첫 Ubuntu 작업은 **환경 확인 → 기본 PX4 예제 실행 → 원본 데이터 감사 → Scimitar 모델 설계** 순서로 진행합니다. 환경 준비와 자료 감사는 병행할 수 있습니다.
@@ -69,7 +71,8 @@ PX4는 추후 별도 의존성으로 clone하고 commit을 고정합니다. PX4 
 | `PX4 Firmware/` | upstream PX4 parameter 및 설명 |
 | `M5 Software/` | upstream M5Stack 관련 파일 |
 | `Media/` | upstream 조립 이미지 및 영상 |
-| `SCIMITAR_GAZEBO_DIGITAL_TWIN_PLAN.md` | 이 fork의 개발 계획 |
+| `SCIMITAR_GAZEBO_DIGITAL_TWIN_PLAN.md` | 이 fork의 전체 개발 계획 |
+| `AERODYNAMICS_ENGINEERING_PLAN.md` | 공력해석·계수 구축·CFD·동역학 검증의 상세 실행 계획 |
 
 `simulation/`은 Ubuntu 개발 단계에서 추가할 예정입니다. 계획 문서의 파일 트리는 목표 구조이며 현재 구현 상태를 뜻하지 않습니다.
 
@@ -97,4 +100,4 @@ PX4는 추후 별도 의존성으로 clone하고 commit을 고정합니다. PX4 
 - 시작 upstream revision: `24a5d5986ae11a63882004382576460844760700`
 - 이 fork의 초기 변경: 프로젝트 README 재구성 및 Gazebo/PX4/VIO 개발 계획 추가
 
-원본 프로젝트는 **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**으로 공개되어 있습니다. 원본 자료의 저작자 표시와 출처를 유지합니다. 추후 도입하는 외부 코드·모델에는 각 원본의 라이선스와 고지를 유지합니다.
+원본 프로젝트는 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)으로 공개되어 있습니다. 원본 자료의 저작자 표시와 출처를 유지합니다. 추후 도입하는 외부 코드·모델에는 각 원본의 라이선스와 고지를 유지합니다.
